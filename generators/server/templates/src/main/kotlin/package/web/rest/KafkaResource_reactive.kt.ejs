@@ -46,17 +46,15 @@ class <%= upperFirstCamelCase(baseName) %>KafkaResource(@Qualifier(KafkaSseProdu
     private val sink: Sinks.Many<Message<String>> = Sinks.many().unicast().onBackpressureBuffer()
 
     @PostMapping("/publish")
-    fun publish(@RequestParam message: String): Mono<ResponseEntity<Void>> {
-        log.debug("REST request the message : {} to send to Kafka topic", message)
-        val map = hashMapOf<String, Any>()
+    suspend fun publish(@RequestParam message: String){
+        val map = mutableMapOf<String, Any>()
         map[MessageHeaders.CONTENT_TYPE] = MimeTypeUtils.TEXT_PLAIN_VALUE
         val headers = MessageHeaders(map)
         output.send(GenericMessage(message, headers))
-        return Mono.just(ResponseEntity.noContent().build())
     }
 
     @GetMapping("/consume")
-    fun consume(): Flux<String> {
+    suspend fun consume(): Flux<String> {
         log.debug("REST request to consume records from Kafka topics")
         return sink.asFlux().map { m -> m.payload }
     }

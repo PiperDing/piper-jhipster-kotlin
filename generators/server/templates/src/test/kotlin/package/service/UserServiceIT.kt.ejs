@@ -1,5 +1,5 @@
 <%#
- Copyright 2013-2023 the original author or authors from the JHipster project.
+ Copyright 2013-2020 the original author or authors from the JHipster project.
 
  This file is part of the JHipster project, see https://www.jhipster.tech/
  for more information.
@@ -44,6 +44,9 @@ import <%= packageName %>.security.ANONYMOUS
 <%_ if (!authenticationTypeOauth2 && (databaseTypeSql || databaseTypeMongodb || databaseTypeNeo4j || databaseTypeCouchbase)) { _%>
 import tech.jhipster.security.RandomUtil
 <%_ } _%>
+
+import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.test.runTest
 
 <%_ if (!authenticationTypeOauth2) { _%>
 import org.apache.commons.lang3.RandomStringUtils
@@ -118,7 +121,7 @@ import org.mockito.Mockito.`any`
 <%_ if (databaseTypeSql && !reactive && !authenticationTypeOauth2) { _%>
 import org.mockito.Mockito.`when`
 <%_ } _%>
-import kotlin.test.assertNotNull
+import kotlin.test.*
 
 private const val DEFAULT_LOGIN = "johndoe"
 private const val DEFAULT_EMAIL = "johndoe@localhost"
@@ -178,7 +181,7 @@ class UserServiceIT {
     <%_ } _%>
 
     @BeforeEach
-    fun init() {
+    fun init() = runTest {
         <%_ if (databaseTypeCouchbase) { _%>
         mockAuthentication()
         <%_ } _%>
@@ -186,10 +189,10 @@ class UserServiceIT {
         persistentTokenRepository.deleteAll()
         <%_ } _%>
         <%_ if (databaseTypeSql && reactive) { _%>
-        userRepository.deleteAllUserAuthorities().block()
+        userRepository.deleteAllUserAuthorities()
         <%_ } _%>
         <%_ if ((reactive && !databaseTypeNo) || databaseTypeMongodb || databaseTypeNeo4j || databaseTypeCassandra || databaseTypeCouchbase) { _%>
-        userRepository.deleteAll()<% if (reactive) { %>.block()<% } %>
+        userRepository.deleteAll()
         <%_ } _%>
         <%_ if (!databaseTypeNo) { _%>
         user = <%= asEntity('User') %>(
@@ -235,7 +238,7 @@ class UserServiceIT {
         <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
         <%_ } _%>
-    fun testRemoveOldPersistentTokens() {
+    fun testRemoveOldPersistentTokens() = runTest {
         userRepository.save<% if (databaseTypeSql) { %>AndFlush<% } %>(user)
         val existingCount = persistentTokenRepository.findByUser(user).size
         val today = LocalDate.now()
@@ -252,101 +255,101 @@ class UserServiceIT {
         <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
         <%_ } _%>
-    fun assertThatUserMustExistToResetPassword() {
-        userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
-        var maybeUser = userService.requestPasswordReset("invalid.login@localhost")<% if (reactive) { %>.blockOptional()<% } %>
-        assertThat(maybeUser).isNotPresent
+    fun assertThatUserMustExistToResetPassword() = runTest {
+        userRepository.save(user)
+        var maybeUser = userService.requestPasswordReset("invalid.login@localhost")
+        assertNull(maybeUser)
 
-        maybeUser = userService.requestPasswordReset(user.email!!)<% if (reactive) { %>.blockOptional()<% } %>
-        assertThat(maybeUser).isPresent
-        assertThat(maybeUser.orElse(null).email).isEqualTo(user.email)
-        assertThat(maybeUser.orElse(null).resetDate).isNotNull()
-        assertThat(maybeUser.orElse(null).resetKey).isNotNull()
+        maybeUser = userService.requestPasswordReset(user.email!!)
+        assertNotNull(maybeUser)
+        assertThat(maybeUser.email).isEqualTo(user.email)
+        assertThat(maybeUser.resetDate).isNotNull()
+        assertThat(maybeUser.resetKey).isNotNull()
     }
 
     @Test
         <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
         <%_ } _%>
-    fun assertThatOnlyActivatedUserCanRequestPasswordReset() {
+    fun assertThatOnlyActivatedUserCanRequestPasswordReset() = runTest {
         user.activated = false
-        userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(user)
 
-        val maybeUser = userService.requestPasswordReset(user.login!!)<% if (reactive) { %>.blockOptional()<% } %>
-        assertThat(maybeUser).isNotPresent
-        userRepository.delete(user)<% if (reactive) { %>.block()<% } %>
+        val maybeUser = userService.requestPasswordReset(user.login!!)
+        assertNull(maybeUser)
+        userRepository.delete(user)
     }
 
     @Test
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun assertThatResetKeyMustNotBeOlderThan24Hours() {
+    fun assertThatResetKeyMustNotBeOlderThan24Hours() = runTest {
         val daysAgo = Instant.now().minus(25, ChronoUnit.HOURS)
         val resetKey = RandomUtil.generateResetKey()
         user.activated = true
         user.resetDate = daysAgo
         user.resetKey = resetKey
-        userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(user)
 
-        val maybeUser = userService.completePasswordReset("johndoe2", user.resetKey!!)<% if (reactive) { %>.blockOptional()<% } %>
-        assertThat(maybeUser).isNotPresent
-        userRepository.delete(user)<% if (reactive) { %>.block()<% } %>
+        val maybeUser = userService.completePasswordReset("johndoe2", user.resetKey!!)
+        assertNull(maybeUser)
+        userRepository.delete(user)
     }
 
     @Test
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun assertThatResetKeyMustBeValid() {
+    fun assertThatResetKeyMustBeValid() = runTest {
         val daysAgo = Instant.now().minus(25, ChronoUnit.HOURS)
         user.activated = true
         user.resetDate = daysAgo
         user.resetKey = "1234"
-        userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(user)
 
-        val maybeUser = userService.completePasswordReset("johndoe2", user.resetKey!!)<% if (reactive) { %>.blockOptional()<% } %>
-        assertThat(maybeUser).isNotPresent
-        userRepository.delete(user)<% if (reactive) { %>.block()<% } %>
+        val maybeUser = userService.completePasswordReset("johndoe2", user.resetKey!!)
+        assertNull(maybeUser)
+        userRepository.delete(user)
     }
 
     @Test
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun assertThatUserCanResetPassword() {
+    fun assertThatUserCanResetPassword() = runTest {
         val oldPassword = user.password
         val daysAgo = Instant.now().minus(2, ChronoUnit.HOURS)
         val resetKey = RandomUtil.generateResetKey()
         user.activated = true
         user.resetDate = daysAgo
         user.resetKey = resetKey
-        userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(user)
 
-        val maybeUser = userService.completePasswordReset("johndoe2", user.resetKey!!)<% if (reactive) { %>.blockOptional()<% } %>
-        assertThat(maybeUser).isPresent
-        assertThat(maybeUser.orElse(null).resetDate).isNull()
-        assertThat(maybeUser.orElse(null).resetKey).isNull()
-        assertThat(maybeUser.orElse(null).password).isNotEqualTo(oldPassword)
+        val maybeUser = userService.completePasswordReset("johndoe2", user.resetKey!!)
+        assertNotNull(maybeUser)
+        assertThat(maybeUser.resetDate).isNull()
+        assertThat(maybeUser.resetKey).isNull()
+        assertThat(maybeUser.password).isNotEqualTo(oldPassword)
 
-        userRepository.delete(user)<% if (reactive) { %>.block()<% } %>
+        userRepository.delete(user)
     }
 
     @Test
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun assertThatNotActivatedUsersWithNotNullActivationKeyCreatedBefore3DaysAreDeleted() {
+    fun assertThatNotActivatedUsersWithNotNullActivationKeyCreatedBefore3DaysAreDeleted() = runTest {
         val now = Instant.now()
         <%_ if (databaseTypeSql && !reactive) { _%>
         `when`<Optional<TemporalAccessor>>(dateTimeProvider.now).thenReturn(Optional.of(now.minus(4, ChronoUnit.DAYS)))
         <%_ } _%>
         user.activated = false
         user.activationKey = RandomStringUtils.random(20)
-        val dbUser = userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
+        val dbUser = userRepository.save(user)
         assertNotNull(dbUser)
         dbUser.createdDate = now.minus(4, ChronoUnit.DAYS)
-        userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(user)
         <%_ if (databaseTypeSql && reactive) { _%>
         val threeDaysAgo = LocalDateTime.ofInstant(now.minus(3, ChronoUnit.DAYS), ZoneOffset.UTC)
         <%_ } else { _%>
@@ -354,13 +357,13 @@ class UserServiceIT {
         <%_ } _%>
         var users = userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(
             threeDaysAgo
-        )<% if (reactive) { %>.collectList().block()<% } %>
+        ).toList()
         assertThat(users).isNotEmpty
         userService.removeNotActivatedUsers()
         users =
             userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(
                 threeDaysAgo
-            )<% if (reactive) { %>.collectList().block()<% } %>
+            ).toList()
         assertThat(users).isEmpty()
         <%_ if (searchEngineElasticsearch) { _%>
 
@@ -373,15 +376,15 @@ class UserServiceIT {
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun assertThatNotActivatedUsersWithNullActivationKeyCreatedBefore3DaysAreNotDeleted() {
+    fun assertThatNotActivatedUsersWithNullActivationKeyCreatedBefore3DaysAreNotDeleted() = runTest {
         val now = Instant.now()
         <%_ if (databaseTypeSql && !reactive) { _%>
         `when`(dateTimeProvider.getNow()).thenReturn(Optional.of(now.minus(4, ChronoUnit.DAYS)<% if (databaseTypeSql && reactive) { %>.atOffset(ZoneOffset.UTC)<% } %>))
         <%_ } _%>
         user.activated = false
-        val dbUser = userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
+        val dbUser = userRepository.save(user)
         dbUser.createdDate = now.minus(4, ChronoUnit.DAYS)
-        userRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(user)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(user)
         <%_ if (databaseTypeSql && reactive) { _%>
         val threeDaysAgo = LocalDateTime.ofInstant(now.minus(3, ChronoUnit.DAYS), ZoneOffset.UTC)
         <%_ } else { _%>
@@ -390,11 +393,11 @@ class UserServiceIT {
         val users =
             userRepository.findAllByActivatedIsFalseAndActivationKeyIsNotNullAndCreatedDateBefore(
                 threeDaysAgo
-            )<% if (reactive) { %>.collectList().block()<% } %>
+            ).toList()
         assertThat(users).isEmpty()
         userService.removeNotActivatedUsers()
-        val maybeDbUser = userRepository.findById(dbUser.id)<% if (reactive) { %>.blockOptional()<% } %>
-        assertThat(maybeDbUser).contains(dbUser)
+        val maybeDbUser = userRepository.findById(dbUser.id!!)
+        assertThat(maybeDbUser).isEqualTo(dbUser)
         <%_ if (searchEngineElasticsearch) { _%>
 
         // Verify Elasticsearch mock
@@ -417,7 +420,7 @@ class UserServiceIT {
             ipAddress = "127.0.0.1",
             userAgent = "Test agent"
         )
-        persistentTokenRepository.save<% if (databaseTypeSql && !reactive) { %>AndFlush<% } %>(token)
+        persistentTokenRepository.save(token)
     }
     <%_ } _%>
     <%_ if (authenticationTypeOauth2) { _%>
@@ -426,9 +429,9 @@ class UserServiceIT {
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun testDefaultUserDetails() {
+    fun testDefaultUserDetails() = runTest {
         val authentication = createMockOAuth2AuthenticationToken(userDetails)
-        val userDTO = userService.getUserFromAuthentication(authentication)<% if (reactive) { %>.block()<% } %>
+        val userDTO = userService.getUserFromAuthentication(authentication)
 
         assertThat(userDTO.login).isEqualTo(DEFAULT_LOGIN)
         assertThat(userDTO.firstName).isEqualTo(DEFAULT_FIRSTNAME)
@@ -444,10 +447,10 @@ class UserServiceIT {
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun testUserDetailsWithUsername() {
+    fun testUserDetailsWithUsername() = runTest {
         userDetails["preferred_username"] = "TEST"
         val authentication = createMockOAuth2AuthenticationToken(userDetails)
-        val userDTO = userService.getUserFromAuthentication(authentication)<% if (reactive) { %>.block()<% } %>
+        val userDTO = userService.getUserFromAuthentication(authentication)
         assertThat(userDTO.login).isEqualTo("test")
     }
 
@@ -455,11 +458,11 @@ class UserServiceIT {
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun testUserDetailsWithLangKey() {
+    fun testUserDetailsWithLangKey() = runTest {
         userDetails["langKey"] = DEFAULT_LANGKEY
         userDetails["locale"] = "en-US"
         val authentication = createMockOAuth2AuthenticationToken(userDetails)
-        val userDTO = userService.getUserFromAuthentication(authentication)<% if (reactive) { %>.block()<% } %>
+        val userDTO = userService.getUserFromAuthentication(authentication)
         assertThat(userDTO.langKey).isEqualTo(DEFAULT_LANGKEY)
     }
 
@@ -467,10 +470,10 @@ class UserServiceIT {
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun testUserDetailsWithLocale() {
+    fun testUserDetailsWithLocale() = runTest {
         userDetails["locale"] = "it-IT"
         val authentication = createMockOAuth2AuthenticationToken(userDetails)
-        val userDTO = userService.getUserFromAuthentication(authentication)<% if (reactive) { %>.block()<% } %>
+        val userDTO = userService.getUserFromAuthentication(authentication)
         assertThat(userDTO.langKey).isEqualTo("it")
     }
 
@@ -478,10 +481,10 @@ class UserServiceIT {
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun testUserDetailsWithUSLocaleUnderscore() {
+    fun testUserDetailsWithUSLocaleUnderscore() = runTest {
         userDetails["locale"] = "en_US"
         val authentication = createMockOAuth2AuthenticationToken(userDetails)
-        val userDTO = userService.getUserFromAuthentication(authentication)<% if (reactive) { %>.block()<% } %>
+        val userDTO = userService.getUserFromAuthentication(authentication)
         assertThat(userDTO.langKey).isEqualTo("en")
     }
 
@@ -489,10 +492,10 @@ class UserServiceIT {
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Transactional
     <%_ } _%>
-    fun testUserDetailsWithUSLocaleDash() {
+    fun testUserDetailsWithUSLocaleDash() = runTest {
         userDetails["locale"] = "en-US"
         val authentication = createMockOAuth2AuthenticationToken(userDetails)
-        val userDTO = userService.getUserFromAuthentication(authentication)<% if (reactive) { %>.block()<% } %>
+        val userDTO = userService.getUserFromAuthentication(authentication)
         assertThat(userDTO.langKey).isEqualTo("en")
     }
 

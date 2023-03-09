@@ -50,6 +50,7 @@ import java.util.Locale
 
 import org.assertj.core.api.Assertions.assertThat
 import org.assertj.core.api.Assertions.assertThatExceptionOfType
+import kotlinx.coroutines.test.runTest
 
 private const val USER_ONE_LOGIN = "test-user-one"
 private const val USER_ONE_EMAIL = "test-user-one@localhost"
@@ -75,15 +76,15 @@ class DomainUserDetailsServiceIT {
 
     @Autowired
     @Qualifier("userDetailsService")
-    private lateinit var domainUserDetailsService: <% if (reactive) { %>Reactive<% } %>UserDetailsService
+    private lateinit var domainUserDetailsService: ReactiveUserDetailsService
 
     @BeforeEach
-    fun init() {
+    fun init() = runTest {
         <%_ if (databaseTypeSql && reactive) { _%>
-        userRepository.deleteAllUserAuthorities().block()
+        userRepository.deleteAllUserAuthorities()
         <%_ } _%>
         <%_ if (!databaseTypeSql || reactive) { _%>
-        userRepository.deleteAll()<% if (reactive) { %>.block()<% } %>
+        userRepository.deleteAll()
 
         <%_ } _%>
         val userOne = <%= asEntity('User') %>(
@@ -101,7 +102,7 @@ class DomainUserDetailsServiceIT {
             <%_ } _%>
             langKey = "en"
         )
-        userRepository.save(userOne)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(userOne)
 
         val userTwo = <%= asEntity('User') %>(
             <%_ if (databaseTypeCassandra) { _%>
@@ -118,7 +119,7 @@ class DomainUserDetailsServiceIT {
             <%_ } _%>
             langKey = "en"
         )
-        userRepository.save(userTwo)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(userTwo)
 
         val userThree = <%= asEntity('User') %>(
             <%_ if (databaseTypeCassandra) { _%>
@@ -135,7 +136,7 @@ class DomainUserDetailsServiceIT {
             <%_ } _%>
             langKey = "en"
         )
-        userRepository.save(userThree)<% if (reactive) { %>.block()<% } %>
+        userRepository.save(userThree)
     }
 
     @Test

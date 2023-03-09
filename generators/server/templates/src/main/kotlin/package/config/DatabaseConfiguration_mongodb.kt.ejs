@@ -23,9 +23,7 @@ import tech.jhipster.config.JHipsterConstants
 import tech.jhipster.domain.util.JSR310DateConverters.DateToZonedDateTimeConverter
 import tech.jhipster.domain.util.JSR310DateConverters.ZonedDateTimeToDateConverter
 import org.springframework.boot.autoconfigure.mongo.MongoAutoConfiguration
-<%_ if (reactive) { _%>
 import org.springframework.boot.autoconfigure.mongo.MongoReactiveAutoConfiguration
-<%_ } _%>
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Import
@@ -38,9 +36,6 @@ import org.springframework.core.convert.converter.Converter
 <%_ if (searchEngineElasticsearch) { _%>
 import org.springframework.data.elasticsearch.repository.config.Enable<% if (reactive) { %>Reactive<% } %>ElasticsearchRepositories
 <%_ } _%>
-<%_ if (!reactive) { _%>
-import org.springframework.data.mongodb.config.EnableMongoAuditing
-<%_ } _%>
 import org.springframework.data.mongodb.core.convert.MongoCustomConversions
 import org.springframework.data.mongodb.core.mapping.event.ValidatingMongoEventListener
 <%_ if (searchEngineElasticsearch) { _%>
@@ -50,27 +45,27 @@ import org.springframework.data.mongodb.repository.config.Enable<% if (reactive)
 import org.springframework.validation.beanvalidation.LocalValidatorFactoryBean
 import java.util.ArrayList
 import java.util.List
+import com.piper.pay.security.getCurrentUserLogin
+import org.springframework.data.domain.ReactiveAuditorAware
+import org.springframework.data.mongodb.config.EnableReactiveMongoAuditing
+
 
 @Configuration
 @EnableMongock
+@EnableReactiveMongoAuditing
 <%_ if (searchEngineElasticsearch) { _%>
-@Enable<% if (reactive) { %>Reactive<% } %>ElasticsearchRepositories("<%= packageName %>.repository.search")
-@Enable<% if (reactive) { %>Reactive<% } %>MongoRepositories(
+@EnableReactiveElasticsearchRepositories("<%= packageName %>.repository.search")
+@EnableReactiveMongoRepositories(
     basePackages = ["<%= packageName %>.repository"],
     includeFilters = [
-        Filter(type=FilterType.ASSIGNABLE_TYPE,value = [<% if (reactive) { %>Reactive<% } %>MongoRepository::class])
+        Filter(type=FilterType.ASSIGNABLE_TYPE,value = [ReactiveMongoRepository::class])
     ]
 )
 <%_ } else { _%>
-@Enable<% if (reactive) { %>Reactive<% } %>MongoRepositories("<%= packageName %>.repository")
+@EnableReactiveMongoRepositories("<%= packageName %>.repository")
 <%_ } _%>
 @Profile("!" + JHipsterConstants.SPRING_PROFILE_CLOUD)
-<%_ if (reactive) { _%>
 @Import(value = [MongoAutoConfiguration::class, MongoReactiveAutoConfiguration::class])
-<%_ } else { _%>
-@Import(value = [MongoAutoConfiguration::class])
-@EnableMongoAuditing(auditorAwareRef = "springSecurityAuditorAware")
-<%_ } _%>
 class DatabaseConfiguration {
 
     @Bean
@@ -87,4 +82,9 @@ class DatabaseConfiguration {
                 ZonedDateTimeToDateConverter.INSTANCE
             )
         )
+
+    @Bean
+    fun myAuditorProvider(): ReactiveAuditorAware<String> {
+        return ReactiveAuditorAware { getCurrentUserLogin() }
+    }
 }

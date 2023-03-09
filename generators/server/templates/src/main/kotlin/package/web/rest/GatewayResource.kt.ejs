@@ -51,7 +51,7 @@ class GatewayResource(
      */
     @GetMapping("/routes")
     @Secured(ADMIN)
-    fun activeRoutes(): ResponseEntity<List<RouteVM>> {
+    suspend fun activeRoutes(): ResponseEntity<List<RouteVM>> {
         val routes = routeLocator.routes
         val routeVMs = mutableListOf<RouteVM>()
         routes.subscribe { route ->

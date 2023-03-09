@@ -190,9 +190,6 @@ class <%= asEntity('User') %> (
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Column(length = 50, unique = true, nullable = false)
     <%_ } _%>
-    <%_ if (databaseTypeMongodb) { _%>
-    @Indexed
-    <%_ } _%>
     <%_ if (databaseTypeCouchbase) { _%>
     @IdAttribute
     <%_ } _%>
@@ -257,9 +254,6 @@ class <%= asEntity('User') %> (
     @field:Size(min = 5, max = 254)
     <%_ if (databaseTypeSql && !reactive) { _%>
     @Column(length = 254, unique = true)
-    <%_ } _%>
-    <%_ if (databaseTypeMongodb) { _%>
-    @Indexed
     <%_ } _%>
     var email: String? = null,
 
